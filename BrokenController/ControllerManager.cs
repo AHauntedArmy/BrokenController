@@ -107,6 +107,12 @@ namespace BrokenController
             if ((device.characteristics & leftCharecteristics) == leftCharecteristics) leftValid = false;
 
             UpdateControllers();
+
+            bool leftisvalid = InputDevices.GetDeviceAtXRNode(XRNode.LeftHand).isValid;
+            bool rightisvalid = InputDevices.GetDeviceAtXRNode(XRNode.RightHand).isValid;
+
+            Debug.Log("leftisvalid: " + leftisvalid);
+            Debug.Log("rightisvalid: " + rightisvalid);
         }
 
         private void UpdateControllers()
