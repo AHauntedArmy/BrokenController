@@ -5,6 +5,6 @@ namespace BrokenController
     {
         public const string GUID = "com.author.gorillatag.brokencontroller";
         public const string Name = "BrokenController";
-        public const string Version = "1.0.2";
+        public const string Version = "1.1.0";
     }
 }
