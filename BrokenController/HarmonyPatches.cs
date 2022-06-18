@@ -28,7 +28,7 @@ namespace BrokenController
         internal static void RemoveHarmonyPatches()
         {
             if (instance != null && IsPatched) {
-                instance.UnpatchAll(InstanceId);
+                instance.UnpatchSelf();
                 IsPatched = false;
             }
         }
@@ -51,16 +51,22 @@ namespace BrokenController
         [HarmonyPostfix, HarmonyPatch("Start", MethodType.Normal)]
         internal static void AddOnlineRig(VRRig __instance)
         {
-            if (PlayerObject == null || __instance.photonView == null) return;
-            PlayerObject.GetComponent<ControllerManager>()?.AddOnlineRig(__instance);
+            try {
+                if (PlayerObject == null || __instance.photonView == null) return;
+                PlayerObject.GetComponent<ControllerManager>()?.AddOnlineRig(__instance);
+            
+            } catch { }
         }
 
         [HarmonyPatch(typeof(VRRig))]
         [HarmonyPostfix, HarmonyPatch("OnDestroy", MethodType.Normal)]
         internal static void RemoveOnlineRig(VRRig __instance)
         {
-            if (PlayerObject == null || __instance.photonView == null) return;
-            PlayerObject.GetComponent<ControllerManager>()?.RemoveOnlineRig(__instance);
+            try {
+                if (PlayerObject == null || __instance.photonView == null) return;
+                PlayerObject.GetComponent<ControllerManager>()?.RemoveOnlineRig(__instance);
+
+            } catch { }
         }
     }
 

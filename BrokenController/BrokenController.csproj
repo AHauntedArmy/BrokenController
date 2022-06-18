@@ -59,9 +59,6 @@
     <Reference Include="PhotonVoice.PUN">
       <HintPath>D:\Programs\Steam Games\steamapps\common\Gorilla Tag\Gorilla Tag_Data\Managed\PhotonVoice.PUN.dll</HintPath>
     </Reference>
-    <Reference Include="PhotonWebSocket">
-      <HintPath>D:\Programs\Steam Games\steamapps\common\Gorilla Tag\Gorilla Tag_Data\Managed\PhotonWebSocket.dll</HintPath>
-    </Reference>
     <Reference Include="PlayFab">
       <HintPath>D:\Programs\Steam Games\steamapps\common\Gorilla Tag\Gorilla Tag_Data\Managed\PlayFab.dll</HintPath>
     </Reference>

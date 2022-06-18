@@ -9,18 +9,61 @@ using HarmonyLib; // for accesstools
 
 namespace BrokenController
 {
+    internal class XRNodeController
+    {
+        public VRMap OfflineHand { get; private set; }
+        public XRController Controller { get; private set; }
+
+        public VRMap OnlineHand {
+            get => onlineHand;
+            set {
+                if (value != null) {
+                    onlineHand = value;
+                    onlineHand.vrTargetNode = OfflineHand.vrTargetNode;
+                    return;
+                }
+
+                onlineHand = value;
+            }
+        }
+
+        private VRMap onlineHand = null;
+        
+        public bool DeviceValid {
+            get {
+                if (Controller == null) {
+                    return false;
+                }
+
+                return Controller.inputDevice.isValid;
+            }
+        }
+
+        private XRNodeController() { }
+        public XRNodeController(VRMap hand, XRController xrController)
+        {
+            OfflineHand = hand;
+            Controller = xrController;
+        }
+
+        public void SetXRNode(XRNode controllerNode)
+        {
+            OfflineHand.vrTargetNode = controllerNode;
+            Controller.controllerNode = controllerNode;
+            
+            if (OnlineHand != null) {
+                OnlineHand.vrTargetNode = controllerNode;
+            }
+        }
+    }
+
     public class ControllerManager : MonoBehaviour
     {
         private const InputDeviceCharacteristics rightCharecteristics = InputDeviceCharacteristics.Controller | InputDeviceCharacteristics.Right;
         private const InputDeviceCharacteristics leftCharecteristics = InputDeviceCharacteristics.Controller | InputDeviceCharacteristics.Left;
 
-        private XRController rightController = null;
-        private XRController leftController = null;
-
-        private VRMap rightHandRig = null;
-        private VRMap leftHandRig = null;
-        private VRMap onlineRightHandRig = null;
-        private VRMap onlineLeftHandRig = null;
+        XRNodeController rightHandRig = null;
+        XRNodeController leftHandRig = null;
 
         private bool rightValid = false;
         private bool leftValid = false;
@@ -29,18 +72,18 @@ namespace BrokenController
 
         void Awake()
         {
-            rightController = Player.Instance?.rightHandTransform.GetComponent<XRController>();
-            leftController = Player.Instance?.leftHandTransform.GetComponent<XRController>();
+            var rightController = Player.Instance?.rightHandTransform.GetComponent<XRController>();
+            var leftController = Player.Instance?.leftHandTransform.GetComponent<XRController>();
 
             if (rightController == null) {
-                Debug.Log("right controller script not found");
+                Debug.Log("BrokenController: right controller script not found");
                 Object.Destroy(this);
                 return;
             
             } else Debug.Log(rightController.controllerNode.ToString());
 
             if (leftController == null) {
-                Debug.Log("left controller script not found");
+                Debug.Log("BrokenController: left controller script not found");
                 Object.Destroy(this);
                 return;
             
@@ -48,33 +91,39 @@ namespace BrokenController
 
             controllerInputDevice = AccessTools.Field(typeof(XRController), "m_InputDevice");
 
-            GameObject rigObject = null;
             VRRig offlineRig = null;
-
-            rigObject = GameObject.Find("Actual Gorilla");
-            offlineRig = rigObject?.GetComponent<VRRig>();
+            foreach (var rig in Resources.FindObjectsOfTypeAll<VRRig>()) {
+                if (rig.isOfflineVRRig) {
+                    offlineRig = rig;
+                }
+            }
 
             if (offlineRig == null) {
+                Debug.Log("BrokenController: failed to find the players vrrig");
                 GameObject.Destroy(this);
                 return;
             }
 
-            rightHandRig = offlineRig.rightHand;
-            leftHandRig = offlineRig.leftHand;
+            var rightHand = offlineRig.rightHand;
+            var leftHand = offlineRig.leftHand;
 
-            if (rightHandRig == null || leftHandRig == null) {
+            if (rightHand == null || leftHand == null) {
+                Debug.Log("BrokenController: failed to find offline rig hands.");
                 GameObject.Destroy(this);
                 return;
             }
+
+            rightHandRig = new XRNodeController(rightHand, rightController);
+            leftHandRig = new XRNodeController(leftHand, leftController);
         }
 
         private void OnEnable()
         {
-            rightValid = rightController.inputDevice.isValid;
-            leftValid = leftController.inputDevice.isValid;
+            rightValid = rightHandRig.DeviceValid;
+            leftValid = leftHandRig.DeviceValid;
 
-            Debug.Log("RightController isvalid: " + rightValid);
-            Debug.Log("LeftController isvalid: " + leftValid);
+            Debug.Log("BrokenController: RightController isvalid: " + rightValid);
+            Debug.Log("BrokenController: LeftController isvalid: " + leftValid);
 
             UpdateControllers();
 
@@ -95,77 +144,74 @@ namespace BrokenController
 
         private void DeviceConnected(InputDevice device)
         {
-            if ((device.characteristics & rightCharecteristics) == rightCharecteristics) rightValid = true;
-            if ((device.characteristics & leftCharecteristics) == leftCharecteristics) leftValid = true;
+            if ((device.characteristics & rightCharecteristics) == rightCharecteristics) {
+                rightValid = true;
+            }
+
+            if ((device.characteristics & leftCharecteristics) == leftCharecteristics) {
+                leftValid = true;
+            }
 
             UpdateControllers();
         }
 
         private void DeviceDisconnected(InputDevice device)
-        { 
-            if ((device.characteristics & rightCharecteristics) == rightCharecteristics) rightValid = false;
-            if ((device.characteristics & leftCharecteristics) == leftCharecteristics) leftValid = false;
+        {
+            if ((device.characteristics & rightCharecteristics) == rightCharecteristics) {
+                rightValid = false;
+            }
+
+            if ((device.characteristics & leftCharecteristics) == leftCharecteristics) {
+                leftValid = false;
+            }
 
             UpdateControllers();
-
-            bool leftisvalid = InputDevices.GetDeviceAtXRNode(XRNode.LeftHand).isValid;
-            bool rightisvalid = InputDevices.GetDeviceAtXRNode(XRNode.RightHand).isValid;
-
-            Debug.Log("leftisvalid: " + leftisvalid);
-            Debug.Log("rightisvalid: " + rightisvalid);
         }
 
         private void UpdateControllers()
         {
-            Debug.Log("Right controller connected: " + rightValid);
-            Debug.Log("Left controller connected: " + leftValid);
+            if (rightHandRig == null || leftHandRig == null) {
+                return;
+            }
+
+            Debug.Log("BrokenController: Right controller connected: " + rightValid);
+            Debug.Log("BrokenController: Left controller connected: " + leftValid);
 
             if (rightValid == leftValid) {
                 Debug.Log("setting the controllers back to default");
-                if (onlineRightHandRig != null) onlineRightHandRig.vrTargetNode = XRNode.RightHand;
-                rightHandRig.vrTargetNode = XRNode.RightHand;
-                rightController.controllerNode = XRNode.RightHand;
+                rightHandRig.SetXRNode(XRNode.RightHand);
+                leftHandRig.SetXRNode(XRNode.LeftHand);
 
-                if (onlineLeftHandRig != null) onlineLeftHandRig.vrTargetNode = XRNode.LeftHand;
-                leftHandRig.vrTargetNode = XRNode.LeftHand;
-                leftController.controllerNode = XRNode.LeftHand;
+                controllerInputDevice.SetValue(rightHandRig.Controller, InputDevices.GetDeviceAtXRNode(XRNode.RightHand));
+                controllerInputDevice.SetValue(leftHandRig.Controller, InputDevices.GetDeviceAtXRNode(XRNode.LeftHand));
 
-                controllerInputDevice.SetValue(rightController, InputDevices.GetDeviceAtXRNode(XRNode.RightHand));
-                controllerInputDevice.SetValue(leftController, InputDevices.GetDeviceAtXRNode(XRNode.LeftHand));
-
-                Debug.Log(rightController.inputDevice.name);
-                Debug.Log(leftController.inputDevice.name);
                 return;
             }
 
             if (rightValid) {
                 Debug.Log("moving left hand to the right controller");
-                if (onlineLeftHandRig != null) onlineLeftHandRig.vrTargetNode = XRNode.RightHand;
-                leftHandRig.vrTargetNode = XRNode.RightHand;
-                leftController.controllerNode = XRNode.RightHand;
+                leftHandRig.SetXRNode(XRNode.RightHand);
             }
 
             if (leftValid) {
                 Debug.Log("moving right hand to the left controller");
-                if (onlineRightHandRig != null) onlineRightHandRig.vrTargetNode = XRNode.LeftHand;
-                rightHandRig.vrTargetNode = XRNode.LeftHand;
-                rightController.controllerNode = XRNode.LeftHand;
+                rightHandRig.SetXRNode(XRNode.LeftHand);
             }
         }
 
         public void AddOnlineRig(VRRig onlineRig)
         {
             if (onlineRig.photonView.IsMine) {
-                onlineRightHandRig = onlineRig.rightHand;
-                onlineLeftHandRig = onlineRig.leftHand;
+                rightHandRig.OnlineHand = onlineRig.rightHand;
+                leftHandRig.OnlineHand = onlineRig.leftHand;
             }
         }
 
         public void RemoveOnlineRig(VRRig onlineRig)
         {
             if (onlineRig.photonView.IsMine) {
-                if (onlineRig.rightHand == onlineRightHandRig) onlineRightHandRig = null;
-                if (onlineRig.leftHand == onlineLeftHandRig) onlineLeftHandRig = null;
+                rightHandRig.OnlineHand = null;
+                leftHandRig.OnlineHand = null;
             }
         }
     }
